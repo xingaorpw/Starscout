@@ -1,9 +1,11 @@
 # StarScout · 每日 GitHub 星探
 
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+
 每天从 GitHub 捞一批正在冒头的项目，按**你的口味**排序推给你；
 你点 👍 / 👎 / 🔖，它当晚就调整明天的榜单。
 
-> 一个完整的"采集 → 画像 → 排序 → 反馈 → 再画像"闭环，代码量约 900 行，单机可跑，不需要 GPU。
+> 一个完整的"采集 → 画像 → 排序 → 反馈 → 再画像"闭环，约 1800 行代码，单机可跑，不需要 GPU。
 
 ---
 
@@ -165,3 +167,9 @@ python demo_learn.py
 - 未认证时 Search API 限 10 次/分钟，采集一轮约 1 分钟；
 - 哈希向量有碰撞，极少数情况下两个不相关项目会互相"串味"；
 - 单机 SQLite，没有并发写保护，别开多个采集进程。
+
+---
+
+## License
+
+[MIT](LICENSE) © 2026 xingaorpw
