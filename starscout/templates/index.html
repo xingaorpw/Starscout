@@ -1,0 +1,540 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>StarScout · 今日 GitHub 精选</title>
+<style>
+  :root{
+    --bg:#0b0f14; --panel:#111821; --card:#151d27; --card-hi:#1a2431;
+    --border:#22303d; --text:#e6edf3; --muted:#8b98a5; --dim:#5d6b7a;
+    --accent:#4c8dff; --green:#3fb950; --red:#f85149; --gold:#e3b341;
+    --radius:14px;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;padding:0}
+  body{
+    background:
+      radial-gradient(900px 500px at 12% -8%, #16263c 0%, transparent 60%),
+      radial-gradient(700px 400px at 92% 0%, #1b2233 0%, transparent 55%),
+      var(--bg);
+    color:var(--text);
+    font:15px/1.6 -apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Microsoft YaHei",sans-serif;
+    min-height:100vh;
+    -webkit-font-smoothing:antialiased;
+  }
+  a{color:inherit;text-decoration:none}
+  .app{display:grid;grid-template-columns:264px minmax(0,1fr);gap:34px;max-width:1120px;margin:0 auto;padding:34px 24px 80px}
+
+  /* ---------- 侧栏 ---------- */
+  .side{position:sticky;top:34px;align-self:start;display:flex;flex-direction:column;gap:16px}
+  .brand{display:flex;align-items:center;gap:10px;padding:2px 4px 10px}
+  .logo{
+    width:34px;height:34px;border-radius:10px;flex:none;
+    background:linear-gradient(135deg,#4c8dff,#8b5cf6);
+    display:grid;place-items:center;font-size:17px;
+    box-shadow:0 4px 18px rgba(76,141,255,.35);
+  }
+  .brand h1{font-size:16px;margin:0;letter-spacing:.3px}
+  .brand small{display:block;color:var(--dim);font-size:11px;letter-spacing:1.6px;text-transform:uppercase}
+
+  .panel{background:var(--panel);border:1px solid var(--border);border-radius:var(--radius);padding:14px 15px}
+  .panel h2{font-size:11px;letter-spacing:1.4px;color:var(--dim);margin:0 0 10px;font-weight:600;text-transform:uppercase}
+
+  .prog{height:6px;border-radius:99px;background:#1d2733;overflow:hidden;margin:8px 0 6px}
+  .prog i{display:block;height:100%;width:0;border-radius:99px;background:linear-gradient(90deg,#3fb950,#4c8dff);transition:width .45s cubic-bezier(.2,.8,.2,1)}
+  .prog-row{display:flex;justify-content:space-between;font-size:12px;color:var(--muted)}
+
+  .taste-item{display:flex;align-items:center;gap:8px;margin:7px 0;font-size:12.5px}
+  .taste-item .nm{width:88px;flex:none;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--muted)}
+  .taste-item .bar{flex:1;height:5px;border-radius:99px;background:#1d2733;overflow:hidden}
+  .taste-item .bar i{display:block;height:100%;border-radius:99px;background:var(--accent);opacity:.85}
+  .taste-item.neg .bar i{background:var(--red);opacity:.6}
+  .empty-hint{color:var(--dim);font-size:12px;line-height:1.5}
+
+  .kv{display:flex;justify-content:space-between;font-size:12.5px;color:var(--muted);padding:3px 0}
+  .kv b{color:var(--text);font-weight:600}
+
+  .btn{
+    width:100%;padding:9px 12px;border-radius:10px;border:1px solid var(--border);
+    background:#18222e;color:var(--text);font-size:13px;cursor:pointer;
+    transition:.18s;font-family:inherit;
+  }
+  .btn:hover{background:#1e2a38;border-color:#31445a}
+  .btn:disabled{opacity:.5;cursor:not-allowed}
+  .btn.primary{background:linear-gradient(135deg,#3d7dff,#6d5cf6);border-color:transparent;font-weight:600}
+  .btn.primary:hover{filter:brightness(1.08)}
+  .btn.ghost{background:transparent}
+
+  /* ---------- 主区 ---------- */
+  .main{min-width:0}
+  .head{display:flex;align-items:flex-end;justify-content:space-between;gap:16px;margin-bottom:20px}
+  .head h2{margin:0;font-size:23px;letter-spacing:.2px}
+  .head p{margin:4px 0 0;color:var(--muted);font-size:12.5px}
+  .pill{
+    font-size:11.5px;color:var(--muted);border:1px solid var(--border);
+    padding:4px 10px;border-radius:99px;background:#101720;white-space:nowrap
+  }
+
+  .feed{display:flex;flex-direction:column;gap:12px}
+
+  .card{
+    position:relative;display:grid;grid-template-columns:38px minmax(0,1fr) 44px;
+    gap:14px;padding:17px 16px 16px;background:var(--card);
+    border:1px solid var(--border);border-radius:var(--radius);
+    transition:border-color .2s,transform .2s,background .2s,opacity .35s;
+    animation:rise .38s cubic-bezier(.2,.8,.2,1) both;
+  }
+  @keyframes rise{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}
+  .card:hover{border-color:#31445a;background:var(--card-hi)}
+  .card.gone{opacity:0;transform:translateX(28px) scale(.97)}
+  .rank{
+    font:600 13px/1 ui-monospace,SFMono-Regular,Menlo,monospace;color:var(--dim);
+    padding-top:3px;letter-spacing:.5px
+  }
+  .name{font-size:16.5px;font-weight:600;letter-spacing:.1px}
+  .name .owner{color:var(--dim);font-weight:400}
+  .name:hover{color:var(--accent)}
+  .desc{margin:5px 0 9px;color:#b8c4d0;font-size:13.5px;line-height:1.62}
+  .chips{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:10px}
+  .chip{
+    font-size:11px;color:#9fb0c2;background:#1b2531;border:1px solid #26333f;
+    padding:2px 8px;border-radius:99px
+  }
+  .reason{
+    font-size:12.5px;color:#8fb6ff;background:rgba(76,141,255,.08);
+    border-left:2px solid rgba(76,141,255,.5);padding:5px 10px;border-radius:0 7px 7px 0;
+    margin-bottom:10px;display:inline-block
+  }
+  .meta{display:flex;flex-wrap:wrap;gap:14px;font-size:12px;color:var(--dim)}
+  .meta span{display:inline-flex;align-items:center;gap:5px}
+  .dot{width:8px;height:8px;border-radius:99px;display:inline-block;background:#666}
+
+  .acts{display:flex;flex-direction:column;gap:7px;align-items:center;padding-top:1px}
+  .act{
+    width:38px;height:38px;border-radius:11px;border:1px solid var(--border);
+    background:#111a24;color:var(--muted);cursor:pointer;font-size:15px;
+    display:grid;place-items:center;transition:.16s;padding:0
+  }
+  .act:hover{transform:translateY(-1px)}
+  .act.like:hover{color:var(--green);border-color:rgba(63,185,80,.55);background:rgba(63,185,80,.1)}
+  .act.dislike:hover{color:var(--red);border-color:rgba(248,81,73,.5);background:rgba(248,81,73,.1)}
+  .act.save:hover{color:var(--gold);border-color:rgba(227,179,65,.5);background:rgba(227,179,65,.1)}
+
+  .done{
+    text-align:center;padding:56px 20px;border:1px dashed var(--border);
+    border-radius:var(--radius);background:rgba(17,24,33,.5)
+  }
+  .done h3{margin:0 0 6px;font-size:17px}
+  .done p{margin:0 0 18px;color:var(--muted);font-size:13px}
+  .done .btn{width:auto;padding:9px 20px;display:inline-block}
+
+  .hidden{display:none !important}
+
+  /* ---------- 引导 ---------- */
+  .modal{position:fixed;inset:0;background:rgba(5,8,12,.82);backdrop-filter:blur(6px);display:grid;place-items:center;padding:20px;z-index:50}
+  .sheet{
+    width:min(620px,100%);max-height:88vh;overflow:auto;background:#0f1620;
+    border:1px solid var(--border);border-radius:18px;padding:26px 26px 22px;
+    box-shadow:0 30px 80px rgba(0,0,0,.6)
+  }
+  .sheet h2{margin:0 0 4px;font-size:19px}
+  .sheet .sub{color:var(--muted);font-size:13px;margin:0 0 20px}
+  .group{margin-bottom:18px}
+  .group h3{font-size:12px;color:var(--dim);letter-spacing:1.2px;margin:0 0 9px;text-transform:uppercase}
+  .opts{display:flex;flex-wrap:wrap;gap:8px}
+  .opt{
+    padding:6px 13px;border-radius:99px;border:1px solid var(--border);background:#141d27;
+    color:var(--muted);font-size:12.5px;cursor:pointer;transition:.15s;user-select:none
+  }
+  .opt:hover{border-color:#33475e;color:var(--text)}
+  .opt.on{background:rgba(76,141,255,.16);border-color:rgba(76,141,255,.6);color:#a9c8ff}
+  .sheet .foot{display:flex;justify-content:space-between;align-items:center;margin-top:22px;gap:12px}
+  .sheet .foot .btn{width:auto;padding:9px 22px}
+
+  /* ---------- toast ---------- */
+  #toast{
+    position:fixed;left:50%;bottom:30px;transform:translate(-50%,20px);
+    background:#1b2734;border:1px solid #2c3d4f;color:var(--text);
+    padding:9px 18px;border-radius:99px;font-size:13px;opacity:0;
+    transition:.25s;pointer-events:none;z-index:99
+  }
+  #toast.show{opacity:1;transform:translate(-50%,0)}
+
+  @media (max-width:860px){
+    .app{grid-template-columns:1fr;gap:22px;padding:20px 16px 60px}
+    .side{position:static;order:2}
+    .head{flex-direction:column;align-items:flex-start;gap:6px}
+    .card{grid-template-columns:28px minmax(0,1fr);gap:10px}
+    .acts{grid-column:1/-1;flex-direction:row;justify-content:flex-end;margin-top:2px}
+  }
+</style>
+</head>
+<body>
+<div class="app">
+  <aside class="side">
+    <div class="brand">
+      <div class="logo">✦</div>
+      <div>
+        <h1>StarScout</h1>
+        <small>GitHub 星探</small>
+      </div>
+    </div>
+
+    <div class="panel">
+      <h2>今日进度</h2>
+      <div class="prog"><i id="prog-fill"></i></div>
+      <div class="prog-row"><span id="prog-text">0 / 12</span><span id="prog-pct">0%</span></div>
+    </div>
+
+    <div class="panel">
+      <h2>你的口味</h2>
+      <div id="taste"><p class="empty-hint">还没有评分记录。<br>点几个 👍 我就知道你爱看什么。</p></div>
+    </div>
+
+    <div class="panel">
+      <h2>数据</h2>
+      <div class="kv"><span>候选仓库</span><b id="st-repos">0</b></div>
+      <div class="kv"><span>累计评分</span><b id="st-ratings">0</b></div>
+      <div class="kv"><span>画像置信度</span><b id="st-conf">0%</b></div>
+    </div>
+
+    <button class="btn" id="btn-collect">↻ 抓取最新数据</button>
+    <button class="btn ghost" id="btn-onboard">调整兴趣偏好</button>
+  </aside>
+
+  <main class="main">
+    <div class="head">
+      <div>
+        <h2>今日推荐</h2>
+        <p id="head-sub">正在读取…</p>
+      </div>
+      <span class="pill" id="head-pill">按口味排序</span>
+    </div>
+
+    <div class="feed" id="feed"></div>
+
+    <div class="done hidden" id="done">
+      <h3>今天的推荐看完了</h3>
+      <p>你的每一次点击都在改变明天的榜单。</p>
+      <button class="btn primary" id="btn-more">再来一批</button>
+    </div>
+  </main>
+</div>
+
+<div class="modal hidden" id="onboard">
+  <div class="sheet">
+    <h2>先告诉我你想看什么</h2>
+    <p class="sub">选 3 个以上方向，我会从这些领域开始挖，再根据你的 👍 / 👎 慢慢校准。</p>
+
+    <div class="group">
+      <h3>感兴趣的方向</h3>
+      <div class="opts" id="opt-topics"></div>
+    </div>
+
+    <div class="group">
+      <h3>常用语言</h3>
+      <div class="opts" id="opt-langs"></div>
+    </div>
+
+    <div class="foot">
+      <span class="empty-hint" id="onboard-hint">至少选 3 个方向</span>
+      <button class="btn primary" id="btn-start">开始</button>
+    </div>
+  </div>
+</div>
+
+<div id="toast"></div>
+
+<script>
+const TOPICS = [
+  ["llm","大模型"],["llm-agents","Agent"],["rag","RAG 检索"],["multimodal","多模态"],
+  ["computer-vision","计算机视觉"],["speech","语音"],["machine-learning","机器学习"],
+  ["data-science","数据科学"],["developer-tools","开发工具"],["web","Web 前端"],
+  ["backend","后端"],["infrastructure","基础设施"],["security","安全"],
+  ["robotics","机器人"],["embedded","嵌入式"],["game-engine","游戏引擎"],
+];
+const LANGS = ["Python","TypeScript","Rust","Go","C++","JavaScript","Java","C","Jupyter Notebook","Swift","Kotlin","Zig"];
+const LANG_COLOR = {
+  "Python":"#3572A5","TypeScript":"#3178c6","Rust":"#dea584","Go":"#00ADD8",
+  "C++":"#f34b7d","JavaScript":"#f1e05a","Java":"#b07219","C":"#555555",
+  "Jupyter Notebook":"#DA5B0B","Swift":"#F05138","Kotlin":"#A97BFF","Zig":"#ec915c",
+  "HTML":"#e34c26","Vue":"#41b883","Shell":"#89e051","C#":"#178600","Ruby":"#701516",
+  "PHP":"#4F5D95","Dart":"#00B4AB","Lua":"#000080","Svelte":"#ff3e00"
+};
+
+const state = { onboarded:false, stats:null, picked:new Set(), langs:new Set(), busy:false };
+
+const $ = (s) => document.querySelector(s);
+const esc = (s) => String(s ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+
+function toast(msg){
+  const t = $("#toast");
+  t.textContent = msg;
+  t.classList.add("show");
+  clearTimeout(t._timer);
+  t._timer = setTimeout(() => t.classList.remove("show"), 1900);
+}
+
+async function api(path, opts){
+  const res = await fetch(path, opts);
+  if(!res.ok){
+    let detail = "";
+    try { detail = (await res.json()).error || ""; } catch(e){}
+    throw new Error(detail || ("HTTP " + res.status));
+  }
+  return res.json();
+}
+
+function fmtStars(n){
+  n = Number(n) || 0;
+  if(n >= 1000) return (n/1000).toFixed(n >= 10000 ? 0 : 1) + "k";
+  return String(n);
+}
+
+function timeAgo(iso){
+  if(!iso) return "—";
+  const d = (Date.now() - new Date(iso).getTime()) / 86400000;
+  if(isNaN(d)) return "—";
+  if(d < 1) return "今天";
+  if(d < 30) return Math.floor(d) + " 天前";
+  if(d < 365) return Math.floor(d/30) + " 个月前";
+  return Math.floor(d/365) + " 年前";
+}
+
+/* ---------------- 侧栏 ---------------- */
+function renderStats(stats){
+  if(!stats) return;
+  state.stats = stats;
+  $("#st-repos").textContent = stats.repos;
+  $("#st-ratings").textContent = stats.ratings;
+  $("#st-conf").textContent = Math.round((stats.confidence || 0) * 100) + "%";
+
+  const target = 12;
+  const n = Math.min(stats.today, target);
+  $("#prog-fill").style.width = (n / target * 100) + "%";
+  $("#prog-text").textContent = n + " / " + target;
+  $("#prog-pct").textContent = Math.round(n / target * 100) + "%";
+
+  const box = $("#taste");
+  const items = (stats.taste && stats.taste.topics) || [];
+  if(!items.length){
+    box.innerHTML = '<p class="empty-hint">还没有评分记录。<br>点几个 👍 我就知道你爱看什么。</p>';
+    return;
+  }
+  const max = Math.max(...items.map(i => Math.abs(i.score)), 1);
+  box.innerHTML = items.slice(0, 7).map(i => `
+    <div class="taste-item ${i.score < 0 ? "neg" : ""}">
+      <span class="nm">${esc(i.name)}</span>
+      <span class="bar"><i style="width:${Math.max(6, Math.abs(i.score)/max*100)}%"></i></span>
+    </div>`).join("");
+}
+
+/* ---------------- 卡片 ---------------- */
+function cardHTML(item){
+  const lang = item.language || "";
+  const color = LANG_COLOR[lang] || "#666";
+  const topics = (item.topics || []).slice(0, 5)
+    .map(t => `<span class="chip">${esc(t)}</span>`).join("");
+  const reason = item.reason ? `<div class="reason">✦ ${esc(item.reason)}</div>` : "";
+  const rank = String(item.rank || 0).padStart(2, "0");
+  return `
+  <article class="card" data-id="${item.id}">
+    <div class="rank">${rank}</div>
+    <div>
+      <a class="name" href="${esc(item.url)}" target="_blank" rel="noopener">
+        <span class="owner">${esc(item.owner)}/</span>${esc(item.name)}
+      </a>
+      <p class="desc">${esc(item.description || "（这个仓库没写简介，点进去看看？）")}</p>
+      <div class="chips">${topics}</div>
+      ${reason}
+      <div class="meta">
+        <span><i class="dot" style="background:${color}"></i>${esc(lang || "Unknown")}</span>
+        <span>★ ${fmtStars(item.stars)}</span>
+        <span>⑂ ${fmtStars(item.forks)}</span>
+        <span>更新于 ${timeAgo(item.pushed_at)}</span>
+      </div>
+    </div>
+    <div class="acts">
+      <button class="act like"    data-act="like"    title="感兴趣">👍</button>
+      <button class="act dislike" data-act="dislike" title="不感兴趣">👎</button>
+      <button class="act save"    data-act="save"    title="收藏">🔖</button>
+    </div>
+  </article>`;
+}
+
+function renderFeed(items){
+  const feed = $("#feed");
+  const done = $("#done");
+  if(!items.length){
+    feed.innerHTML = "";
+    done.classList.remove("hidden");
+    return;
+  }
+  done.classList.add("hidden");
+  feed.innerHTML = items.map(cardHTML).join("");
+  feed.querySelectorAll(".card").forEach(el => {
+    el.querySelectorAll(".act").forEach(btn => {
+      btn.addEventListener("click", () => rate(el, btn.dataset.act));
+    });
+  });
+}
+
+async function rate(el, action){
+  if(state.busy) return;
+  state.busy = true;
+  el.querySelectorAll(".act").forEach(b => b.disabled = true);
+  try{
+    const data = await api("/api/rate", {
+      method:"POST",
+      headers:{"Content-Type":"application/json"},
+      body: JSON.stringify({ repo_id: Number(el.dataset.id), action })
+    });
+    renderStats(data.stats);
+    el.classList.add("gone");
+    setTimeout(() => {
+      el.remove();
+      if(!$("#feed").children.length) $("#done").classList.remove("hidden");
+    }, 320);
+    const word = {like:"记下了 👍", dislike:"明白，少推这类", save:"已收藏 🔖", skip:"跳过"}[action];
+    toast(word);
+  }catch(err){
+    toast("提交失败：" + err.message);
+    el.querySelectorAll(".act").forEach(b => b.disabled = false);
+  }finally{
+    state.busy = false;
+  }
+}
+
+/* ---------------- 加载 ---------------- */
+async function loadFeed(){
+  try{
+    const data = await api("/api/feed?k=12");
+    renderFeed(data.items || []);
+    const fresh = data.fresh && (data.items || []).length;
+    $("#head-sub").textContent = data.empty
+      ? "还没有数据，先点左下角「抓取最新数据」"
+      : `${new Date().toLocaleDateString("zh-CN", {month:"long", day:"numeric"})} · 按你的口味挑了 ${data.items.length} 个`;
+  }catch(err){
+    $("#feed").innerHTML = `<p class="empty-hint">加载失败：${esc(err.message)}</p>`;
+  }
+}
+
+async function boot(){
+  try{
+    const s = await api("/api/state");
+    state.onboarded = s.onboarded;
+    renderStats(s.stats);
+    if(!s.onboarded){
+      // 没选偏好就先不排序，免得推一批无关的再全部作废
+      $("#head-sub").textContent = "先在左边选几个感兴趣的方向";
+      $("#head-pill").textContent = "待设置偏好";
+      openOnboard(true);
+      return;
+    }
+    await loadFeed();
+  }catch(err){
+    $("#head-sub").textContent = "服务未就绪：" + err.message;
+  }
+}
+
+/* ---------------- 引导 ---------------- */
+function buildOnboard(){
+  $("#opt-topics").innerHTML = TOPICS.map(([id, label]) =>
+    `<span class="opt" data-kind="topic" data-id="${id}">${label}</span>`).join("");
+  $("#opt-langs").innerHTML = LANGS.map(l =>
+    `<span class="opt" data-kind="lang" data-id="${l}">${l}</span>`).join("");
+
+  document.querySelectorAll(".opt").forEach(el => {
+    el.addEventListener("click", () => {
+      const set = el.dataset.kind === "topic" ? state.picked : state.langs;
+      const id = el.dataset.id;
+      if(set.has(id)){ set.delete(id); el.classList.remove("on"); }
+      else { set.add(id); el.classList.add("on"); }
+      const ok = state.picked.size >= 3;
+      $("#onboard-hint").textContent = ok
+        ? `已选 ${state.picked.size} 个方向`
+        : `还差 ${3 - state.picked.size} 个方向`;
+      $("#btn-start").disabled = !ok;
+    });
+  });
+  $("#btn-start").disabled = true;
+}
+
+function openOnboard(reset){
+  if(reset){ state.picked.clear(); state.langs.clear(); }
+  document.querySelectorAll(".opt").forEach(el => {
+    const set = el.dataset.kind === "topic" ? state.picked : state.langs;
+    el.classList.toggle("on", set.has(el.dataset.id));
+  });
+  $("#onboard-hint").textContent = state.picked.size >= 3
+    ? `已选 ${state.picked.size} 个方向` : `还差 ${3 - state.picked.size} 个方向`;
+  $("#btn-start").disabled = state.picked.size < 3;
+  $("#onboard").classList.remove("hidden");
+}
+
+async function submitOnboard(){
+  $("#btn-start").disabled = true;
+  try{
+    await api("/api/onboard", {
+      method:"POST",
+      headers:{"Content-Type":"application/json"},
+      body: JSON.stringify({ topics:[...state.picked], languages:[...state.langs] })
+    });
+    $("#onboard").classList.add("hidden");
+    state.onboarded = true;
+    $("#head-pill").textContent = "按口味排序";
+    toast("偏好已保存，正在重新排序…");
+    await loadFeed();
+  }catch(err){
+    toast("保存失败：" + err.message);
+    $("#btn-start").disabled = false;
+  }
+}
+
+/* ---------------- 采集 ---------------- */
+async function collect(){
+  const btn = $("#btn-collect");
+  btn.disabled = true;
+  btn.textContent = "正在抓取…";
+  try{
+    await api("/api/collect", { method:"POST" });
+    const timer = setInterval(async () => {
+      try{
+        const s = await api("/api/collect/status");
+        if(s.running){
+          btn.textContent = "抓取中…";
+          return;
+        }
+        clearInterval(timer);
+        btn.disabled = false;
+        btn.textContent = "↻ 抓取最新数据";
+        if(s.error){ toast("采集失败：" + s.error); }
+        else{
+          toast(s.message || "已更新");
+          const st = await api("/api/state");
+          renderStats(st.stats);
+          await loadFeed();
+        }
+      }catch(e){ clearInterval(timer); btn.disabled = false; btn.textContent = "↻ 抓取最新数据"; }
+    }, 1200);
+  }catch(err){
+    btn.disabled = false;
+    btn.textContent = "↻ 抓取最新数据";
+    toast("采集失败：" + err.message);
+  }
+}
+
+/* ---------------- 绑定 ---------------- */
+buildOnboard();
+$("#btn-start").addEventListener("click", submitOnboard);
+$("#btn-onboard").addEventListener("click", () => openOnboard(false));
+$("#btn-collect").addEventListener("click", collect);
+$("#btn-more").addEventListener("click", async () => {
+  $("#done").classList.add("hidden");
+  await loadFeed();
+});
+boot();
+</script>
+</body>
+</html>
