@@ -45,6 +45,62 @@ python demo_learn.py        # 对照实验：证明它真的会学
 
 ---
 
+## 用法
+
+### 看画像和推荐结果（命令行）
+
+```bash
+python run.py stats
+```
+
+真实输出：
+
+```
+仓库 431 个 · 评分 6 条 · 反馈进度 24%
+
+口味（topic）：
+  ai-agents                +  2.0  ####
+  claude-code              +  2.0  ####
+  rag                      +  2.0  ####
+  websocket                -  1.0  ##
+
+如果现在推给你，会推这 8 个：
+   1. addyosmani/agent-skills    q=0.99  命中你的偏好 codex / claude-code，日均涨星约 431
+   2. google-gemini/gemini-cli   q=0.97  命中你的偏好 ai-agents，日均涨星约 192
+   6. langchain-ai/langchain     q=0.95  命中你的偏好 rag / llm，日均涨星约 101
+```
+
+注意 `ai-agents` 是 `+2.0`，`websocket` 是 `-1.0`——正负号来自你的 👍 和 👎。
+
+### 在网页里用
+
+```bash
+python run.py serve     # 打开 http://127.0.0.1:8000
+```
+
+1. 首次进入选几个感兴趣的方向（也可以跳过，直接靠反馈学）
+2. 每张卡下面四个按钮：👍 喜欢 / 👎 不喜欢 / 🔖 收藏 / ⏭ 跳过
+3. 右侧「口味画像」实时更新，被点赞的 topic 会往上浮
+4. 第二天再来，榜单已经按你昨晚的反馈重排
+
+### 采集真实数据
+
+```bash
+set GITHUB_TOKEN=ghp_xxx     # Windows；macOS/Linux 用 export
+python run.py collect
+```
+
+不带 token 也能跑，只是 Search API 限 10 次/分钟，一轮约 1 分钟。
+
+### 清空重来
+
+```bash
+python run.py reset          # 只清评分和推荐缓存，保留仓库
+python run.py reset --all    # 连仓库一起清空
+```
+
+---
+
 ## 它到底怎么判断"你爱看什么"
 
 不是让大模型猜，是一个能解释的小模型。四步：
