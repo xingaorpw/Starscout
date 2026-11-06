@@ -204,6 +204,12 @@ python demo_learn.py
 
 ---
 
+## 更新日志
+
+见 [CHANGELOG.md](CHANGELOG.md)。当前版本 `v0.1.1`，修掉了外部审计发现的 7 个问题。
+
+---
+
 ## License
 
 [MIT](LICENSE) © 2026 xingaorpw
