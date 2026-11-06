@@ -196,7 +196,7 @@
       <h2>数据</h2>
       <div class="kv"><span>候选仓库</span><b id="st-repos">0</b></div>
       <div class="kv"><span>累计评分</span><b id="st-ratings">0</b></div>
-      <div class="kv"><span>画像置信度</span><b id="st-conf">0%</b></div>
+      <div class="kv"><span>反馈进度</span><b id="st-conf">0%</b></div>
     </div>
 
     <button class="btn" id="btn-collect">↻ 抓取最新数据</button>
@@ -308,7 +308,7 @@ function renderStats(stats){
   state.stats = stats;
   $("#st-repos").textContent = stats.repos;
   $("#st-ratings").textContent = stats.ratings;
-  $("#st-conf").textContent = Math.round((stats.confidence || 0) * 100) + "%";
+  $("#st-conf").textContent = Math.round((stats.progress || 0) * 100) + "%";
 
   const target = 12;
   const n = Math.min(stats.today, target);

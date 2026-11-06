@@ -60,7 +60,7 @@ print("\n=== 口味画像 ===")
 taste = profile.taste_summary(by_id, events)
 for t in taste["topics"][:6]:
     print(f"  {t['name']:<22} {t['score']:+.2f}")
-print(f"  置信度 {profile.confidence(events):.0%}")
+print(f"  反馈进度 {profile.feedback_progress(events):.0%}")
 
 before_names = [n for n, _, _ in before]
 after_names = [n for n, _, _ in after]

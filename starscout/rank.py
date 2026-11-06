@@ -46,8 +46,7 @@ def quality_score(repo: dict[str, Any], now: datetime | None = None) -> float:
     now = now or datetime.now(timezone.utc)
     stars = float(repo.get("stars") or 0)
     forks = float(repo.get("forks") or 0)
-    age = max(_days_since(repo.get("created_at"), now), 1.0)
-    velocity = stars / age
+    velocity = star_velocity(repo, now)
     fresh = 1.0 - min(_days_since(repo.get("pushed_at"), now) / 120.0, 1.0)
 
     q = (
@@ -64,9 +63,22 @@ def quality_score(repo: dict[str, Any], now: datetime | None = None) -> float:
 
 
 def star_velocity(repo: dict[str, Any], now: datetime | None = None) -> float:
+    """日增 star。
+
+    优先用近期快照算出的真实增量；没有快照才退回「总 star ÷ 存活天数」——
+    后者是生命周期均值，会严重低估「存在五年、昨天刚爆火」的项目。
+    """
+    recent = repo.get("recent_velocity")
+    if recent is not None:
+        return max(0.0, float(recent))
     now = now or datetime.now(timezone.utc)
     age = max(_days_since(repo.get("created_at"), now), 1.0)
     return float(repo.get("stars") or 0) / age
+
+
+def velocity_is_recent(repo: dict[str, Any]) -> bool:
+    """涨星速度是不是来自近期快照（而不是生命周期均值）。"""
+    return repo.get("recent_velocity") is not None
 
 
 def repo_age_days(repo: dict[str, Any], now: datetime | None = None) -> float:
@@ -215,7 +227,8 @@ def explain(
     if age <= 90 and stars >= 300:
         parts.append(f"{int(age)} 天涨到 {stars:,} star")
     elif velocity >= 40:
-        parts.append(f"日均涨星约 {velocity:.0f}")
+        prefix = "最近日均涨星约" if velocity_is_recent(repo) else "日均涨星约"
+        parts.append(f"{prefix} {velocity:.0f}")
     elif float(item["quality"]) >= 0.62:
         parts.append(f"综合质量 {float(item['quality']):.2f}")
 

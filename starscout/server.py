@@ -14,12 +14,43 @@ from .features import Vectorizer
 
 RATE_ACTIONS = {"like", "dislike", "save", "skip"}
 
+# 这些接口要读 JSON 请求体，必须带正确的 Content-Type
+JSON_BODY_ENDPOINTS = {"/api/onboard", "/api/rate"}
+
 _collect_state: dict[str, Any] = {
     "running": False,
     "message": "",
     "added": 0,
     "error": None,
 }
+
+
+def _same_origin() -> bool:
+    """粗粒度的 CSRF 防护：只接受同源发起的写请求。
+
+    没有这层的话，任何外部页面都能用普通表单 POST 到 /api/onboard，
+    把用户的兴趣偏好清空——不需要读取响应就能造成破坏。
+    """
+    origin = request.headers.get("Origin")
+    if origin:
+        expected = f"{request.scheme}://{request.host}"
+        if origin.rstrip("/") != expected:
+            return False
+    # 现代浏览器会带这个头；老客户端没有时不做判断，避免误伤
+    site = request.headers.get("Sec-Fetch-Site")
+    if site and site not in ("same-origin", "none"):
+        return False
+    return True
+
+
+def _json_object() -> dict[str, Any] | None:
+    """请求体必须是 JSON 对象，否则返回 None。
+
+    以前用 `get_json(silent=True) or {}`，非 JSON 请求会被当成空配置，
+    直接把用户的偏好写没了。
+    """
+    body = request.get_json(silent=True)
+    return body if isinstance(body, dict) else None
 
 
 def _pipeline(db_path=None):
@@ -77,7 +108,7 @@ def _stats(db_path=None) -> dict[str, Any]:
         "dislikes": dislikes,
         "saves": saves,
         "today": len(today_events),
-        "confidence": profile.confidence(events),
+        "progress": profile.feedback_progress(events),
         "taste": profile.taste_summary(by_id, events),
         "days": len({e["day"] for e in events}),
     }
@@ -87,6 +118,18 @@ def create_app(db_path: Path | str | None = None) -> Flask:
     app = Flask(__name__)
     app.json.ensure_ascii = False
     store.init_db(db_path)
+
+    @app.before_request
+    def _guard_writes():
+        if request.method not in ("POST", "PUT", "PATCH", "DELETE"):
+            return None
+        if not _same_origin():
+            return jsonify({"ok": False, "error": "拒绝跨站请求"}), 403
+        if request.path in JSON_BODY_ENDPOINTS and not request.is_json:
+            return jsonify(
+                {"ok": False, "error": "需要 Content-Type: application/json"}
+            ), 415
+        return None
 
     @app.get("/")
     def index():
@@ -106,7 +149,9 @@ def create_app(db_path: Path | str | None = None) -> Flask:
 
     @app.post("/api/onboard")
     def api_onboard():
-        body = request.get_json(silent=True) or {}
+        body = _json_object()
+        if body is None:
+            return jsonify({"ok": False, "error": "请求体必须是 JSON 对象"}), 400
         topics = [t for t in (body.get("topics") or []) if isinstance(t, str)][:8]
         languages = [l for l in (body.get("languages") or []) if isinstance(l, str)][:6]
         store.kv_set("prior_topics", topics, db_path)
@@ -118,24 +163,39 @@ def create_app(db_path: Path | str | None = None) -> Flask:
 
     @app.get("/api/feed")
     def api_feed():
-        k = max(1, min(int(request.args.get("k", config.TOP_K)), 30))
+        raw_k = request.args.get("k")
+        if raw_k is None:
+            k = config.TOP_K
+        else:
+            try:
+                k = int(raw_k)
+            except (TypeError, ValueError):
+                return jsonify({"ok": False, "error": "k 必须是整数"}), 400
+        k = max(1, min(k, 30))
+
         day = store.today()
         rated = store.rated_repo_ids(db_path)
-
         stored = [r for r in store.recommendations_for(day, db_path) if r["id"] not in rated]
-        if len(stored) >= min(k, 3):
+
+        # 缓存够数就直接返回；不够时只补差额，最后再截到 k。
+        # 之前是「缓存够 3 条就返回」+「不足时生成完整 k 条再拼上缓存」，
+        # 于是先要 3 条再要 12 条只会得到 3 条，反过来又会超过 k。
+        if len(stored) >= k:
             return jsonify({"items": [_card(r) for r in stored[:k]], "fresh": False})
 
+        need = k - len(stored)
         repos, by_id, vec, events, w, pref_topics, pref_langs = _pipeline(db_path)
         if not repos:
-            return jsonify({"items": [], "fresh": True, "empty": True})
+            return jsonify(
+                {"items": [_card(r) for r in stored], "fresh": True, "empty": True}
+            )
 
         shown = {r["id"] for r in store.recommendations_for(day, db_path)}
         picks = rank.recommend(
             repos,
             w,
             vec,
-            k=k,
+            k=need,
             exclude=rated | shown,
             liked_vecs=rank.liked_vectors(vec, by_id, events),
             preferred_topics=pref_topics,
@@ -155,7 +215,7 @@ def create_app(db_path: Path | str | None = None) -> Flask:
             ],
             db_path,
         )
-        items = [
+        fresh_cards = [
             _card(
                 {
                     **it["repo"],
@@ -166,11 +226,14 @@ def create_app(db_path: Path | str | None = None) -> Flask:
             )
             for it in picks
         ]
-        return jsonify({"items": [_card(r) for r in stored] + items, "fresh": True})
+        items = [_card(r) for r in stored] + fresh_cards
+        return jsonify({"items": items[:k], "fresh": True})
 
     @app.post("/api/rate")
     def api_rate():
-        body = request.get_json(silent=True) or {}
+        body = _json_object()
+        if body is None:
+            return jsonify({"ok": False, "error": "请求体必须是 JSON 对象"}), 400
         try:
             repo_id = int(body.get("repo_id"))
         except (TypeError, ValueError):
@@ -178,6 +241,9 @@ def create_app(db_path: Path | str | None = None) -> Flask:
         action = str(body.get("action", "")).strip()
         if action not in RATE_ACTIONS:
             return jsonify({"ok": False, "error": "action 不合法"}), 400
+        # 不存在的仓库不该进评分表：它会计入评分条数和反馈进度，污染画像统计
+        if not store.repo_exists(repo_id, db_path):
+            return jsonify({"ok": False, "error": "仓库不存在"}), 404
 
         store.add_event(repo_id, action, db_path)
         return jsonify({"ok": True, "stats": _stats(db_path)})

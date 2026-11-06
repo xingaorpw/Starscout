@@ -71,7 +71,9 @@ python demo_learn.py        # 对照实验：证明它真的会学
 final = 0.58 × tanh(口味 z 分) + 0.27 × 质量分 + 0.15 × 新鲜度
 ```
 
-- **质量分**：star 绝对值只占 0.38，**涨星速度**占 0.22——只看 star 总数会永远推那几个巨无霸；
+- **质量分**：star 绝对值只占 0.38，**涨星速度**占 0.22——只看 star 总数会永远推那几个巨无霸。
+  涨星速度优先用**多次 star 快照的真实增量**；没有快照时才退回「总 star ÷ 存活天数」，
+  后者是生命周期均值，会把「存在五年、昨天刚爆火」的项目算成 2.34 star/天，而不是 250；
 - **新鲜度**：跟你已收藏内容的余弦相似度越低分越高，防止越推越窄；
 - **MMR + 同语言上限 3**：一屏 12 张卡不会全是 Python。
 
@@ -110,7 +112,7 @@ starscout/
 ├── requirements.txt
 ├── starscout/
 │   ├── config.py           所有可调参数集中在这
-│   ├── store.py            SQLite：repos / events / recommendations / kv
+│   ├── store.py            SQLite：repos / events / star_history / recommendations / kv
 │   ├── collect.py          GitHub 采集（含限速重试）
 │   ├── features.py         哈希 TF-IDF
 │   ├── profile.py          逻辑回归画像 + 可读口味统计
@@ -118,7 +120,7 @@ starscout/
 │   ├── server.py           Flask API
 │   ├── fixtures.py         47 个离线演示仓库
 │   └── templates/index.html  单页前端（无 CDN 依赖）
-└── tests/test_core.py      20 个单元测试
+└── tests/test_core.py      48 个单元测试
 ```
 
 ## API
@@ -139,7 +141,36 @@ starscout/
 python -m unittest discover -s tests -v
 ```
 
-20 个用例覆盖：向量归一化、相似度、质量分边界、画像学习方向、排除已评分、语言配额、同日评分覆盖、API 全链路。
+48 个用例覆盖：向量归一化、相似度、质量分边界、画像学习方向、排除已评分、语言配额、同日评分覆盖、
+哈希桶计数、中文分词、star 快照速度、CSRF 防护、无效评分、榜单补齐、异常输入。
+
+---
+
+## 一次外部审计，以及修了什么
+
+有份第三方审查按提交 `ec77e34` 复现了 7 个问题。全部确认为真，已修复并补了回归测试：
+
+| # | 问题 | 修复 |
+|---|---|---|
+| 1 | 写接口无来源校验，跨站表单 POST 能清空偏好 | 校验 `Origin` / `Sec-Fetch-Site`，非 JSON 请求返回 415 |
+| 2 | 能给不存在的仓库评分，污染统计 | 先查存在性返回 404，`events` 加外键约束 |
+| 3 | 榜单数量不一致：要 3 条再要 12 条只得 3 条 | 只补差额，最后截到 `k`，不再超过 |
+| 4 | 「画像置信度」实际只是评分条数 / 25 | 改名「反馈进度」，并在代码里写清它不代表准确率 |
+| 5 | TF-IDF 只对 token 去重，没对哈希桶去重 | 先映射到桶再统计，单文档 `df` 不再出现 2 |
+| 6 | 涨星速度是生命周期均值，不是近期增量 | 新增 `star_history` 表，用最近两次快照算日增 |
+| 7 | `k=abc`、传 JSON 数组返回 500；中文简介提不出 token | 返回 400；分词补 CJK bigram |
+
+验证脚本的输出（修复后）：
+
+```
+跨站表单 POST /api/onboard  -> 403，偏好未受影响
+给不存在的仓库评分          -> 404，评分条数 0
+先要 3 条再要 12 条         -> 3 条 / 12 条
+TF-IDF 单文档               -> n_docs=1, max(df)=1.0
+中文简介                    -> 16 个 token（含 bigram）
+k=abc / rate 传数组         -> 400 / 400
+涨星速度                    -> 均值 2.34/天 vs 快照 250/天
+```
 
 ---
 

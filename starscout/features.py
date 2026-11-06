@@ -15,6 +15,7 @@ from typing import Any, Iterable
 import numpy as np
 
 TOKEN_RE = re.compile(r"[a-z0-9]+")
+CJK_RE = re.compile(r"[\u4e00-\u9fff]+")
 
 STOPWORDS = frozenset(
     """
@@ -60,6 +61,10 @@ class Vectorizer:
             if len(w) < 2 or w in STOPWORDS:
                 continue
             out.append(f"w:{w}")
+        # 中文没有空格，按 bigram 切。只切拉丁字符的话，纯中文简介一个 token 都提取不到。
+        for run in CJK_RE.findall(text):
+            for i in range(len(run) - 1):
+                out.append(f"w:{run[i:i + 2]}")
         return out
 
     # -- 拟合 ------------------------------------------------------------
@@ -67,8 +72,11 @@ class Vectorizer:
         self.df[:] = 0.0
         self.n_docs = 0
         for r in repos:
-            for tok in set(self.tokens(r)):
-                self.df[self.bucket(tok)] += 1.0
+            # 先去重到"桶"这一层：两个不同 token 撞进同一个桶时，
+            # 只应该给这个桶的文档频率 +1，否则 df 会超过文档总数。
+            buckets = {self.bucket(tok) for tok in self.tokens(r)}
+            for b in buckets:
+                self.df[b] += 1.0
             self.n_docs += 1
         self.idf = np.log((1.0 + self.n_docs) / (1.0 + self.df)) + 1.0
         return self

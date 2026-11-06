@@ -96,7 +96,7 @@ def cmd_stats(_: argparse.Namespace) -> None:
     )
     taste = profile.taste_summary(by_id, events)
 
-    print(f"仓库 {len(repos)} 个 · 评分 {len(events)} 条 · 画像置信度 {profile.confidence(events):.0%}")
+    print(f"仓库 {len(repos)} 个 · 评分 {len(events)} 条 · 反馈进度 {profile.feedback_progress(events):.0%}")
     if taste["topics"]:
         print("\n口味（topic）：")
         for t in taste["topics"]:
@@ -150,6 +150,9 @@ def build_parser() -> argparse.ArgumentParser:
 def main(argv: list[str] | None = None) -> int:
     _utf8()
     args = build_parser().parse_args(argv)
+    # 每个命令都先跑一次建表：新增的表（比如 star_history）靠这一步迁移旧库，
+    # 否则老数据库上的 stats 会因为表不存在直接崩掉。
+    store.init_db()
     args.func(args)
     return 0
 

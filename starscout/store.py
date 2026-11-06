@@ -5,7 +5,7 @@ from __future__ import annotations
 import json
 import sqlite3
 from contextlib import contextmanager
-from datetime import datetime, timezone
+from datetime import date, datetime, timezone
 from pathlib import Path
 from typing import Any, Iterable, Iterator
 
@@ -38,7 +38,7 @@ CREATE INDEX IF NOT EXISTS idx_repos_quality ON repos(quality DESC);
 
 CREATE TABLE IF NOT EXISTS events (
     id         INTEGER PRIMARY KEY AUTOINCREMENT,
-    repo_id    INTEGER NOT NULL,
+    repo_id    INTEGER NOT NULL REFERENCES repos(id) ON DELETE CASCADE,
     action     TEXT NOT NULL,
     day        TEXT NOT NULL,
     created_at TEXT NOT NULL,
@@ -46,6 +46,14 @@ CREATE TABLE IF NOT EXISTS events (
 );
 
 CREATE INDEX IF NOT EXISTS idx_events_day ON events(day);
+
+-- star 快照：判断"正在冒头"必须看近期增量，只看 star/存活天数会低估新近爆火的项目
+CREATE TABLE IF NOT EXISTS star_history (
+    repo_id INTEGER NOT NULL REFERENCES repos(id) ON DELETE CASCADE,
+    day     TEXT NOT NULL,
+    stars   INTEGER NOT NULL,
+    PRIMARY KEY (repo_id, day)
+);
 
 CREATE TABLE IF NOT EXISTS recommendations (
     day     TEXT NOT NULL,
@@ -78,6 +86,7 @@ def db(path: Path | str | None = None) -> Iterator[sqlite3.Connection]:
     conn = sqlite3.connect(p)
     conn.row_factory = sqlite3.Row
     conn.execute("PRAGMA journal_mode=WAL")
+    conn.execute("PRAGMA foreign_keys=ON")
     try:
         yield conn
         conn.commit()
@@ -105,6 +114,7 @@ _REPO_COLS = (
 
 def upsert_repos(repos: Iterable[dict[str, Any]], path=None) -> int:
     now = utcnow()
+    day = today()
     sql = f"""
         INSERT INTO repos ({", ".join(_REPO_COLS)}, first_seen, last_seen)
         VALUES ({", ".join("?" * len(_REPO_COLS))}, ?, ?)
@@ -126,6 +136,15 @@ def upsert_repos(repos: Iterable[dict[str, Any]], path=None) -> int:
     with db(path) as conn:
         for r in repos:
             conn.execute(sql, _row_values(r) + (now, now))
+            row = conn.execute(
+                "SELECT id, stars FROM repos WHERE full_name = ?", (r["full_name"],)
+            ).fetchone()
+            if row is not None:
+                conn.execute(
+                    "INSERT INTO star_history (repo_id, day, stars) VALUES (?, ?, ?) "
+                    "ON CONFLICT(repo_id, day) DO UPDATE SET stars = excluded.stars",
+                    (int(row["id"]), day, int(row["stars"] or 0)),
+                )
             n += 1
     return n
 
@@ -164,7 +183,61 @@ def _hydrate(row: sqlite3.Row) -> dict[str, Any]:
 def all_repos(path=None) -> list[dict[str, Any]]:
     with db(path) as conn:
         rows = conn.execute("SELECT * FROM repos ORDER BY quality DESC").fetchall()
-    return [_hydrate(r) for r in rows]
+    repos = [_hydrate(r) for r in rows]
+    velocities = recent_velocities(path)
+    for r in repos:
+        r["recent_velocity"] = velocities.get(int(r["id"]))
+    return repos
+
+
+def recent_velocities(path=None) -> dict[int, float]:
+    """用最近两次 star 快照算日增。
+
+    只有一个快照的仓库不会出现在结果里——那时只能退回生命周期均值，
+    调用方靠 `recent_velocity is None` 区分这两种情况。
+    """
+    with db(path) as conn:
+        try:
+            rows = conn.execute(
+                "SELECT repo_id, day, stars FROM star_history ORDER BY repo_id, day"
+            ).fetchall()
+        except sqlite3.OperationalError:
+            # 旧库还没建这张表：当成「没有快照」处理，不要连累整个读取路径
+            return {}
+
+    points: dict[int, list[tuple[str, int]]] = {}
+    for r in rows:
+        points.setdefault(int(r["repo_id"]), []).append((r["day"], int(r["stars"])))
+
+    out: dict[int, float] = {}
+    for repo_id, pts in points.items():
+        if len(pts) < 2:
+            continue
+        (day1, stars1), (day2, stars2) = pts[-2], pts[-1]
+        try:
+            span = (date.fromisoformat(day2) - date.fromisoformat(day1)).days
+        except ValueError:
+            continue
+        if span <= 0:
+            continue
+        out[repo_id] = max(0.0, (stars2 - stars1) / span)
+    return out
+
+
+def record_stars(repo_id: int, stars: int, day: str | None = None, path=None) -> None:
+    """手工写一条 star 快照（测试和回填用）。"""
+    with db(path) as conn:
+        conn.execute(
+            "INSERT INTO star_history (repo_id, day, stars) VALUES (?, ?, ?) "
+            "ON CONFLICT(repo_id, day) DO UPDATE SET stars = excluded.stars",
+            (int(repo_id), day or today(), int(stars)),
+        )
+
+
+def repo_exists(repo_id: int, path=None) -> bool:
+    with db(path) as conn:
+        row = conn.execute("SELECT 1 FROM repos WHERE id = ?", (int(repo_id),)).fetchone()
+    return row is not None
 
 
 def repo_map(path=None) -> dict[int, dict[str, Any]]:

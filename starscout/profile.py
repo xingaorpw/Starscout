@@ -137,7 +137,12 @@ def taste_summary(
     return {"topics": _rank(topics), "languages": _rank(languages)}
 
 
-def confidence(events: Iterable[dict[str, Any]]) -> float:
-    """0~1，告诉用户"画像学得有多准"。20 条评分大概到 0.8。"""
+def feedback_progress(events: Iterable[dict[str, Any]]) -> float:
+    """0~1，反馈收集的进度，不是"画像有多准"。
+
+    这个数只是「评分条数 / 25」——它不评估推荐准确率、反馈一致性或预测不确定性，
+    25 条评分就显示 100%，连 skip 也算。所以界面上叫「反馈进度」而不是「置信度」。
+    要真的叫置信度，得另外设计和验证指标。
+    """
     n = sum(1 for e in events if e.get("action") in ACTIONS)
     return round(min(1.0, n / 25.0), 2)
