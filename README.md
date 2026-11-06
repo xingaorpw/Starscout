@@ -1,11 +1,14 @@
 # StarScout · 每日 GitHub 星探
 
+[![tests](https://github.com/xingaorpw/Starscout/actions/workflows/ci.yml/badge.svg)](https://github.com/xingaorpw/Starscout/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
 每天从 GitHub 捞一批正在冒头的项目，按**你的口味**排序推给你；
 你点 👍 / 👎 / 🔖，它当晚就调整明天的榜单。
 
 > 一个完整的"采集 → 画像 → 排序 → 反馈 → 再画像"闭环，约 1800 行代码，单机可跑，不需要 GPU。
+
+![StarScout 界面](docs/screenshot.png)
 
 ---
 
